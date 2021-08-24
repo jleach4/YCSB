@@ -33,8 +33,8 @@ import java.util.*;
  */
 
 public class FoundationDBClient extends DB {
-  private static FDB fdb;
   private static Database[] dbs;
+  private static boolean fdbInitialized;
   private String dbName;
   private int batchSize;
   private int[] batchCounts;
@@ -103,9 +103,9 @@ public class FoundationDBClient extends DB {
 
     try {
       synchronized(FoundationDBClient.class) {
-        if (fdb == null) {
+        if (!fdbInitialized) {
           // Must only be called once per process.
-          fdb = FDB.selectAPIVersion(Integer.parseInt(apiVersion.trim()));
+          FDB fdb = FDB.selectAPIVersion(Integer.parseInt(apiVersion.trim()));
 
           if (clientThreadsPerVersion != 0) {
             logger.info("Threads per version: {}", clientThreadsPerVersion);
@@ -121,15 +121,15 @@ public class FoundationDBClient extends DB {
               fdb.options().setTraceFormat(traceFormat);
             }
           }
-        }
-      }
-
-      dbs = new Database[clusterFiles.length];
-      for (int i = 0; i < clusterFiles.length; i++) {
-        dbs[i] = fdb.open(clusterFiles[i]);
-        if (datacenterId != "") {
-          logger.info("Datacenter ID: {}", datacenterId);
-          dbs[i].options().setDatacenterId(datacenterId);
+          dbs = new Database[clusterFiles.length];
+          for (int i = 0; i < clusterFiles.length; i++) {
+            dbs[i] = fdb.open(clusterFiles[i]);
+            if (datacenterId != "") {
+              logger.info("Datacenter ID: {}", datacenterId);
+              dbs[i].options().setDatacenterId(datacenterId);
+            }
+          }
+          fdbInitialized = true;
         }
       }
 
